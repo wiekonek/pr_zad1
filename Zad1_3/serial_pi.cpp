@@ -11,6 +11,12 @@ long long num_steps = MILIARD;
 int thread_no = 4;
 double step;
 
+enum AFFINITY_TYPE {
+	_1TO1LOGIC,
+	_2TO1PHYSICAL,
+	_1TO1PHYSICAL,
+};
+
 void clean() {
 	num_steps = MILIARD;
 	clock_t start, stop;
@@ -139,8 +145,14 @@ void partial_sum_pp (int offset) {
 	printf("%f\n", ((double)(stop - start) / 1000.0));
 }
 
-void zad8(int threadNo) {
-	omp_set_num_threads(threadNo);
+void zad8(AFFINITY_TYPE type) {
+	int maxThreadNumber = omp_get_max_threads();
+	int	threadNumber = maxThreadNumber;
+	if (type == _1TO1PHYSICAL) {
+		threadNumber = maxThreadNumber / 2;
+	}
+
+	omp_set_num_threads(threadNumber);
 	num_steps = MILIARD;
 	clock_t start, stop;
 	double x, pi, sum = 0.0;
@@ -148,18 +160,33 @@ void zad8(int threadNo) {
 	step = 1. / (double)num_steps;
 	start = clock();
 
-#pragma omp parallel for reduction(+:sum)
-	for (i = 0; i<num_steps; i++) {
-		x = (i + .5)*step;
-		sum += 4.0 / (1. + x*x);
+#pragma omp parallel
+	{
+		int threadId = omp_get_thread_num();
+		switch (type) {
+		case _1TO1LOGIC:
+			SetThreadAffinityMask(GetCurrentThread(), (1 << (threadId % maxThreadNumber)));
+			break;
+		case _2TO1PHYSICAL:
+			SetThreadAffinityMask(GetCurrentThread(), (1 << (threadId % maxThreadNumber)));
+			break;
+		case _1TO1PHYSICAL:
+			SetThreadAffinityMask(GetCurrentThread(), (1 << ((threadId * 2) % (maxThreadNumber))));
+			break;
+		}
+#pragma omp for reduction(+:sum)
+		for (i = 0; i < num_steps; i++) {
+			x = (i + .5)*step;
+			sum += 4.0 / (1. + x*x);
+		}
 	}
 
 	pi = sum*step;
 	stop = clock();
 
-	printf("Threads no. : %d \n", threadNo);
-	printf("Wartosc liczby PI wynosi %15.12f\n", pi);
-	printf("Czas przetwarzania wynosi %f sekund\n", ((double)(stop - start) / 1000.0));
+	printf("threadNumber: %d\n", threadNumber);
+	printf("pi: %15.12f\n", pi);
+	printf("t: %f sekund\n", ((double)(stop - start) / 1000.0));
 }
 
 int main(int argc, char* argv[]) {
@@ -169,9 +196,11 @@ int main(int argc, char* argv[]) {
 	//atomic();
 	//reduction();
 
-	for (int o = 0; o < 40; o++) {
-		partial_sum_pp(o);
-	}
+	zad8(_1TO1PHYSICAL);
+
+	//for (int o = 0; o < 40; o++) {
+	//	partial_sum_pp(o);
+	//}
 
 
 	return 0;
