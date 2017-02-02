@@ -5,8 +5,10 @@
 
 #pragma intrinsic(__rdtsc)
 
+#define THREAD_NUM 4
+
 int main() {
-	omp_set_num_threads(4);
+	omp_set_num_threads(THREAD_NUM);
 	int i;
 	printf("Zad1_2\n");
 
@@ -18,15 +20,16 @@ int main() {
 
 		HANDLE thread_handle = GetCurrentThread();
 
-		DWORD_PTR mask = (1 << (th_id % 4));
+		DWORD_PTR mask = (1 << (th_id % THREAD_NUM));
 		DWORD_PTR result = SetThreadAffinityMask(thread_handle, mask);
+		result = SetThreadAffinityMask(thread_handle, mask);
 
 		if (result == 0) printf("blad SetThreadAffnityMask \n");
 
 		else {
 			printf("maska poprzednia dla watku %d : %d\n", th_id, result);
-			printf("maska nowa dla watku %d : %d\n", th_id, SetThreadAffinityMask(
-				thread_handle, mask));
+			printf("maska nowa dla watku %d : %d\n",
+				th_id, SetThreadAffinityMask(thread_handle, mask));
 		}
 
 		a2 = __rdtsc();
